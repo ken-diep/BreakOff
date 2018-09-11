@@ -1,93 +1,178 @@
 import pygame, sys
 from pygame.locals import *
 
-WINHEIGHT = 480
-WINWIDTH = 640
+#Screen Size
+WIN_HEIGHT = 480
+WIN_WIDTH = 640
 
+#Colour RHB values
 WHITE = (255, 255, 255)
 BLUE = (0, 0, 255)
 
-pygame.init()
+#Brick dimensions
+BRICKWIDTH = 70
+BRICKHEIGHT = 20
 
-DISPLAY = pygame.display.set_mode((WINWIDTH, WINHEIGHT),0,32)
-
-BRICKWIDTH = 80
-BRICKHEIGHT = 30
-
-XPOS = 10  # Start of bricks
-YPOS = 150
-
+#Paddle Dimensions
 PADDLEWIDTH = 80
 PADDLEHEIGHT = 15
-PADDLEXPOS = 320
-PADDLEYPOS = 300
+PADDLE_X = 280 #Paddle starting X position
+PADDLE_Y = 380
 PADDLEVEL = 5 #Paddle velocity
 
-global BALLPOS
+#Ball Dimensions
 BALLHEIGHT = 10
 BALLWIDTH = 10
-BALLYPOS = 200
-BALLXPOS = 320
-BALLYVEL = 5 #Ball velocity
-BALLHVEL = 0
+BALLRADIUS = 5
+BALLDIAMETER = BALLRADIUS*2
+BALL_Y = 290
+BALL_X = 320
 
-BALLDIRECT = 1 #1: Ball is falling, 0: ball is rising
+#States
+STATE_BALL_ON_PADDLE = 0
+STATE_PLAYING = 1
+STATE_WIN = 2
+STATE_GAMEOVER = 3
+state = STATE_BALL_ON_PADDLE
 
-DISPLAY.fill(WHITE)
-DISPLAY.get_rect()
-for i in range(7):
-    pygame.draw.rect(DISPLAY, BLUE, (XPOS, YPOS, BRICKWIDTH, BRICKHEIGHT))
-    XPOS += BRICKWIDTH + 5
+class BreakOff:
+    def __init__(self):
+        self.PADDLEVEL = 0
+        self.BALL_VEL = [0, 0]  # Ball velocity X,Y
 
-while True:
+        pygame.init()
 
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            pygame.quit()
-            sys.exit()
+        self.DISPLAY = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT), 0, 32)
+        self.StartGame()
 
-    if pygame.key.get_pressed()[K_LEFT]: #move paddle left if left arrow is pressed
-        if PADDLEXPOS >= 0: #Imposes boundary
-            PADDLEVEL = -5
+        pygame.display.set_caption("Break Off")
 
-    elif pygame.key.get_pressed()[K_RIGHT]:
-        if PADDLEXPOS <= 640 - BRICKWIDTH:
-            PADDLEVEL = 5
 
-    else:
-        PADDLEVEL = 0
+    def StartGame(self):
+        self.lives = 3
+        self.score = 0
+        self.state = STATE_BALL_ON_PADDLE
 
-    PADDLEXPOS += PADDLEVEL
+        self.paddle = pygame.Rect(PADDLE_X, PADDLE_Y, PADDLEWIDTH, PADDLEHEIGHT) #Draw paddle
+        self.ball = pygame.Rect(BALL_X, BALL_Y, BALLDIAMETER, BALLDIAMETER)
 
-    DISPLAY.fill(WHITE)
-    BALLCLOCK = pygame.time.Clock()
-    BALLCLOCK.tick(30)
+        self.CreateBricks()
+    def CreateBricks(self):
+        self.bricks = []
 
-    for i in range(7):
-        pygame.draw.rect(DISPLAY, BLUE, (XPOS, YPOS, BRICKWIDTH, BRICKHEIGHT))
-        XPOS += BRICKWIDTH + 5
+        YPOS = 80
+        for j in range(5):
+            XPOS = 20  # Start of bricks
+            for i in range(8):
+                self.bricks.append(pygame.Rect(XPOS, YPOS, BRICKWIDTH, BRICKHEIGHT))
+                XPOS += BRICKWIDTH + 5
+            YPOS += BRICKHEIGHT + 5
 
-    pygame.draw.rect(DISPLAY, BLUE, (PADDLEXPOS, PADDLEYPOS, PADDLEWIDTH, PADDLEHEIGHT))
+    def CollisionDetect(self):
 
-    pygame.draw.rect(DISPLAY, BLUE, (BALLXPOS,BALLYPOS,BALLWIDTH,BALLHEIGHT)) #Ball
+        for brick in self.bricks:
+            if self.ball.colliderect(brick):
+                self.bricks.remove(brick)
+                self.BALL_VEL[1] = -self.BALL_VEL[1]
+                self.score += 100
+                break
 
-    #vert collision detection
-    if ((BALLYPOS + BALLHEIGHT == PADDLEYPOS) and (BALLXPOS in range(PADDLEXPOS,PADDLEXPOS+PADDLEWIDTH))):
-        BALLYVEL = -BALLYVEL
-        if PADDLEVEL > 0: #Paddle moving right
-            BALLHVEL = -5
-        elif PADDLEVEL < 0: #Paddle moving left
-            BALLHVEL = 5
-    elif BALLYPOS == 0:
-        BALLYVEL = -BALLYVEL
-    elif BALLXPOS == 0 or BALLXPOS+BALLWIDTH == 640:
-        BALLHVEL = -BALLHVEL
+        if self.ball.colliderect(self.paddle):
+            self.ball.top = self.paddle.top - BALLDIAMETER
+            self.BALL_VEL[1] = -self.BALL_VEL[1]
 
-    if BALLCLOCK.get_time() > 30: #Every 100ms, ball will fall
-        BALLYPOS += BALLYVEL
-        BALLXPOS += BALLHVEL
+            if self.PADDLEVEL > 0:  # Paddle moving right
+                self.BALL_VEL[0] = -5 #Ball moves left
+            elif self.PADDLEVEL < 0:  # Paddle moving left
+                self.BALL_VEL[0] = 5
 
-    pygame.display.update()
+        elif self.ball.top <= 0: #Hits top of screen
+            self.BALL_VEL[1] = -self.BALL_VEL[1]
+
+        elif self.ball.left <= 0 or self.ball.right >= 640: #Hits side of screen
+            self.BALL_VEL[0] = -self.BALL_VEL[0]
+
+        if self.paddle.left < 0: #Imposes left boundary
+            self.paddle.left = 0
+
+        elif self.paddle.right > 640:
+            self.paddle.right = 640
+
+    def InputChecker(self):
+
+        if pygame.key.get_pressed()[K_LEFT]:  # move paddle left if left arrow is pressed
+            self.PADDLEVEL = -5 #Can move left if paddle is not already at edge
+
+        elif pygame.key.get_pressed()[K_RIGHT]:
+            self.PADDLEVEL = 5
+
+        else:
+            self.PADDLEVEL = 0
+
+        self.paddle.left += self.PADDLEVEL
+
+    def GameLoop(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+            self.DISPLAY.fill(WHITE)
+
+            if self.state != STATE_GAMEOVER:
+                for y in self.bricks:
+                    pygame.draw.rect(self.DISPLAY, BLUE, y)
+
+                self.ball.top += self.BALL_VEL[1]
+                self.ball.left += self.BALL_VEL[0]
+                self.InputChecker()
+                self.CollisionDetect()
+
+                if self.state == STATE_BALL_ON_PADDLE:
+                    self.BALL_VEL[1] = 0
+                    self.ball.centerx = self.paddle.centerx
+                    self.ball.bottom = self.paddle.top - 1
+                    if pygame.key.get_pressed()[K_SPACE]:
+                        self.BALL_VEL = [0,-5]
+                        self.state = STATE_PLAYING
+
+                BASICFONT = pygame.font.Font('freesansbold.ttf', 32)
+                GameOverSurf = BASICFONT.render("Game Over. Press enter to play again.", True, BLUE)
+                GameOverRect = GameOverSurf.get_rect()
+                GameOverRect.center = ((WIN_WIDTH/2), (WIN_HEIGHT/2)) #Game over, over half the screen
+
+                SMALLFONT = pygame.font.Font('freesansbold.ttf', 16)
+                StatSurf = SMALLFONT.render(("Score: " + str(self.score) + " Lives: " +
+                                             str(self.lives)), True, BLUE)
+                self.DISPLAY.blit(StatSurf, (250, 5))
+
+                BALLCLOCK = pygame.time.Clock()
+                BALLCLOCK.tick(30)
+
+                if self.ball.top > 480: #Ball hits bottom
+                    self.state = STATE_BALL_ON_PADDLE
+                    self.lives -= 1
+
+                if self.lives == 0 or pygame.key.get_pressed()[K_0]:
+                    self.state = STATE_GAMEOVER
+
+                pygame.draw.rect(self.DISPLAY, BLUE, self.paddle)
+                pygame.draw.circle(self.DISPLAY, BLUE, (self.ball.left + BALLRADIUS,
+                                                        self.ball.top + BALLRADIUS), BALLRADIUS)
+
+            else:
+                self.DISPLAY.blit(GameOverSurf, GameOverRect)
+                if pygame.key.get_pressed()[K_RETURN]:
+                    self.StartGame()
+
+            pygame.display.update()
+
+if __name__ == "__main__":
+    BreakOff().GameLoop()
+
+
+
 
     
 
