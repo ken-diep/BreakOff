@@ -8,24 +8,25 @@ WIN_WIDTH = 640
 #Colour RHB values
 WHITE = (255, 255, 255)
 BLUE = (0, 0, 255)
+BLACK = (0, 0, 0)
 
 #Brick dimensions
 BRICKWIDTH = 70
-BRICKHEIGHT = 20
+BRICKHEIGHT = 30
 
 #Paddle Dimensions
 PADDLEWIDTH = 80
-PADDLEHEIGHT = 15
+PADDLEHEIGHT = 8
 PADDLE_X = 280 #Paddle starting X position
-PADDLE_Y = 380
+PADDLE_Y = 420
 PADDLEVEL = 5 #Paddle velocity
 
 #Ball Dimensions
-BALLHEIGHT = 10
-BALLWIDTH = 10
-BALLRADIUS = 5
+BALLHEIGHT = 15
+BALLWIDTH = 15
+BALLRADIUS = 7.5
 BALLDIAMETER = BALLRADIUS*2
-BALL_Y = 290
+BALL_Y = 275
 BALL_X = 320
 
 #States
@@ -47,7 +48,6 @@ class BreakOff:
 
         pygame.display.set_caption("Break Off")
 
-
     def StartGame(self):
         self.lives = 3
         self.score = 0
@@ -57,7 +57,13 @@ class BreakOff:
         self.ball = pygame.Rect(BALL_X, BALL_Y, BALLDIAMETER, BALLDIAMETER)
 
         self.CreateBricks()
+
     def CreateBricks(self):
+        # Load image files
+        self.BLIMP_IMG = pygame.image.load('zeppelin.png')
+        self.BLIMP_IMG = pygame.transform.scale(self.BLIMP_IMG, (BRICKWIDTH, BRICKHEIGHT))  # Scale to brick size
+        self.BLIMP_IMG = self.BLIMP_IMG.convert_alpha()
+
         self.bricks = []
 
         YPOS = 80
@@ -66,7 +72,9 @@ class BreakOff:
             for i in range(8):
                 self.bricks.append(pygame.Rect(XPOS, YPOS, BRICKWIDTH, BRICKHEIGHT))
                 XPOS += BRICKWIDTH + 5
-            YPOS += BRICKHEIGHT + 5
+            YPOS += BRICKHEIGHT + 3
+
+
 
     def CollisionDetect(self):
 
@@ -118,11 +126,11 @@ class BreakOff:
                     pygame.quit()
                     sys.exit()
 
-            self.DISPLAY.fill(WHITE)
+            self.DISPLAY.fill(BLACK)
 
             if self.state != STATE_GAMEOVER:
                 for y in self.bricks:
-                    pygame.draw.rect(self.DISPLAY, BLUE, y)
+                    pygame.draw.rect(self.DISPLAY, BLACK, y)
 
                 self.ball.top += self.BALL_VEL[1]
                 self.ball.left += self.BALL_VEL[0]
@@ -144,7 +152,7 @@ class BreakOff:
 
                 SMALLFONT = pygame.font.Font('freesansbold.ttf', 16)
                 StatSurf = SMALLFONT.render(("Score: " + str(self.score) + " Lives: " +
-                                             str(self.lives)), True, BLUE)
+                                             str(self.lives)), True, WHITE)
                 self.DISPLAY.blit(StatSurf, (250, 5))
 
                 BALLCLOCK = pygame.time.Clock()
@@ -157,14 +165,28 @@ class BreakOff:
                 if self.lives == 0 or pygame.key.get_pressed()[K_0]:
                     self.state = STATE_GAMEOVER
 
-                pygame.draw.rect(self.DISPLAY, BLUE, self.paddle)
-                pygame.draw.circle(self.DISPLAY, BLUE, (self.ball.left + BALLRADIUS,
-                                                        self.ball.top + BALLRADIUS), BALLRADIUS)
+                pygame.draw.rect(self.DISPLAY, WHITE, self.paddle)
+
+
+                # Load fireball sprite
+                FIREBALL_IMG = pygame.image.load('Fireball1.png')
+                FIREBALL_IMG = pygame.transform.scale(FIREBALL_IMG, (BALLWIDTH, BALLHEIGHT))
+                FIREBALL_IMG = FIREBALL_IMG.convert_alpha()
+
+                # Draw ball
+                # pygame.draw.circle(self.DISPLAY, BLUE, (self.ball.left + BALLRADIUS,
+                #                                         self.ball.top + BALLRADIUS), BALLRADIUS)
+                self.DISPLAY.blit(FIREBALL_IMG, (self.ball.left,self.ball.top))
+
+                for brick in self.bricks:
+                    # brick.blit(self.BLIMP_IMG, brick)
+                    self.DISPLAY.blit(self.BLIMP_IMG, (brick.left, brick.top))
 
             else:
                 self.DISPLAY.blit(GameOverSurf, GameOverRect)
                 if pygame.key.get_pressed()[K_RETURN]:
                     self.StartGame()
+
 
             pygame.display.update()
 
